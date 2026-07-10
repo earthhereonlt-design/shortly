@@ -4,7 +4,13 @@
       "Bash(npm -v)",
       "Bash(pnpm -v)",
       "Bash(npm install *)",
-      "Bash(npx prisma *)"
+      "Bash(npx prisma *)",
+      "Bash(git check-ignore *)",
+      "Bash(git rm *)",
+      "Bash(npm ci *)",
+      "Bash(npm run *)",
+      "Bash(git add *)",
+      "Bash(git commit -m ' *)"
     ]
   }
 }
