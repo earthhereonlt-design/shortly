@@ -1,0 +1,36 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: raillink-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: raillink
+      POSTGRES_PASSWORD: raillink
+      POSTGRES_DB: raillink
+    ports:
+      - "5432:5432"
+    volumes:
+      - raillink-pg:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U raillink"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    container_name: raillink-redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    volumes:
+      - raillink-redis:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+volumes:
+  raillink-pg:
+  raillink-redis:
