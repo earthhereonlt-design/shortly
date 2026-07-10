@@ -6,3 +6,6 @@ node_modules/
 .DS_Store
 .vercel
 next-env.d.ts
+# TypeScript incremental build info (must never be committed — breaks Railway BuildKit cache mounts)
+*.tsbuildinfo
+tsconfig.tsbuildinfo
