@@ -10,7 +10,9 @@
       "Bash(npm ci *)",
       "Bash(npm run *)",
       "Bash(git add *)",
-      "Bash(git commit -m ' *)"
+      "Bash(git commit -m ' *)",
+      "Bash(node -e \"for \\(const p of ['tailwindcss','postcss','autoprefixer','next','geist']\\) { try { console.log\\(p, require\\(p+'/package.json'\\).version\\) } catch\\(e\\){ console.log\\(p,'NOT INSTALLED'\\) } }\")",
+      "Bash(node -e \"const p=require\\('./package.json'\\); console.log\\('postcss field:', JSON.stringify\\(p.postcss||'none'\\)\\)\")"
     ]
   }
 }
