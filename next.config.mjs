@@ -2,6 +2,13 @@
 const nextConfig = {
   reactStrictMode: true,
   poweredByHeader: false,
+  // App URL baked in as a default so it never needs manual setup.
+  // Override with NEXT_PUBLIC_APP_URL if you later change domains.
+  env: {
+    NEXT_PUBLIC_APP_URL:
+      process.env.NEXT_PUBLIC_APP_URL ??
+      "https://shortly-production-8f3c.up.railway.app",
+  },
   images: {
     formats: ["image/avif", "image/webp"],
     remotePatterns: [{ protocol: "https", hostname: "**" }],
