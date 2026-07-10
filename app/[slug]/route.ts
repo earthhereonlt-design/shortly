@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
-import { cacheGet, cacheSet, redis } from "@/lib/redis";
+import { prisma, isDatabaseUnavailable } from "@/lib/prisma";
+import { cacheGet, cacheSet, cacheIncr } from "@/lib/redis";
 import { verifyPassword } from "@/lib/auth";
 import { hashIp } from "@/lib/utils";
 
@@ -167,7 +167,7 @@ async function recordClick(link: LinkRow, req: NextRequest) {
       where: { id: link.id },
       data: { clickCount: { increment: 1 } },
     });
-    await redis.incr(`rl:clicks:${link.id}:today`).catch(() => {});
+    await cacheIncr(`rl:clicks:${link.id}:today`);
   } catch {
     /* never block the redirect on analytics failure */
   }
@@ -175,6 +175,34 @@ async function recordClick(link: LinkRow, req: NextRequest) {
 
 function now(): Date {
   return new Date();
+}
+
+function maintenanceResponse(): Response {
+  const html = `<!doctype html><html lang="en" class="dark"><head><meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>Under maintenance · RailLink</title>
+<style>
+  :root{color-scheme:dark}
+  body{margin:0;min-height:100vh;display:grid;place-items:center;background:#09090b;
+    font-family:ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,sans-serif;color:#fafafc}
+  .card{width:min(92vw,420px);background:rgba(28,28,35,.7);backdrop-filter:blur(20px);
+    border:1px solid rgba(255,255,255,.08);border-radius:24px;padding:32px;text-align:center;
+    box-shadow:0 8px 30px rgba(0,0,0,.35)}
+  h1{font-size:18px;margin:0 0 8px;font-weight:600}
+  p{color:#a1a1aa;font-size:14px;margin:0;line-height:1.5}
+</style></head>
+<body><div class="card">
+  <h1>We'll be right back</h1>
+  <p>RailLink is temporarily unable to reach its database. Please try again shortly.</p>
+</div></body></html>`;
+  return new Response(html, {
+    status: 503,
+    headers: {
+      "content-type": "text/html; charset=utf-8",
+      "retry-after": "30",
+      "cache-control": "no-store",
+    },
+  });
 }
 
 function unlockForm(slug: string, error?: string): Response {
@@ -214,7 +242,13 @@ export async function GET(
   { params }: { params: Promise<{ slug: string }> },
 ) {
   const { slug } = await params;
-  const link = await loadLink(slug);
+  let link: LinkRow | null;
+  try {
+    link = await loadLink(slug);
+  } catch (err) {
+    if (isDatabaseUnavailable(err)) return maintenanceResponse();
+    throw err;
+  }
   if (!link) {
     return NextResponse.json({ error: "Link not found" }, { status: 404 });
   }
@@ -254,7 +288,18 @@ export async function POST(
   { params }: { params: Promise<{ slug: string }> },
 ) {
   const { slug } = await params;
-  const link = await loadLink(slug);
+  let link: LinkRow | null;
+  try {
+    link = await loadLink(slug);
+  } catch (err) {
+    if (isDatabaseUnavailable(err)) {
+      return NextResponse.json(
+        { error: "Service temporarily unavailable" },
+        { status: 503 },
+      );
+    }
+    throw err;
+  }
   if (!link?.password) {
     return NextResponse.json({ error: "Not protected" }, { status: 400 });
   }

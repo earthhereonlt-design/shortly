@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
-import { prisma } from "@/lib/prisma";
-import { cacheDel, cacheGet, cacheSet, redis } from "@/lib/redis";
+import { prisma, isDatabaseUnavailable } from "@/lib/prisma";
+import { cacheDel, cacheGet, cacheSet, cacheIncr } from "@/lib/redis";
 import { hashPassword, getSession, GUEST_COOKIE } from "@/lib/auth";
 import { randomSlug, isValidAlias } from "@/lib/utils";
 import { renderQrSvg } from "@/lib/qr";
@@ -46,8 +46,7 @@ async function rateLimited(ip: string): Promise<boolean> {
     const key = `rl:ratelimit:links:${ip}`;
     const count = await cacheGet<number>(key);
     if (count && count >= 30) return true;
-    await redis.incr(key);
-    await redis.expire(key, 60);
+    await cacheIncr(key, 60);
   } catch {
     /* fail open */
   }
@@ -76,9 +75,10 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  const data = parsed.data;
-  const session = await getSession();
-  const guestId = req.cookies.get(GUEST_COOKIE)?.value ?? undefined;
+  try {
+    const data = parsed.data;
+    const session = await getSession();
+    const guestId = req.cookies.get(GUEST_COOKIE)?.value ?? undefined;
 
   const slug = await uniqueSlug(data.slug);
 
@@ -136,4 +136,13 @@ export async function POST(req: NextRequest) {
   }
   await cacheDel(`rl:link:*`);
   return res;
+  } catch (err) {
+    if (isDatabaseUnavailable(err)) {
+      return NextResponse.json(
+        { error: "Service temporarily unavailable" },
+        { status: 503 },
+      );
+    }
+    throw err;
+  }
 }
